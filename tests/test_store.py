@@ -44,6 +44,7 @@ class StoreTests(unittest.TestCase):
         receipt = self.consume('r2')
         self.assertTrue(receipt['clock_clamped'])
         self.assertEqual(receipt['effective_us'], 1000000)
+        self.assertEqual(receipt['retry_after_us'], 1000000)
         self.now = 1500000
         self.assertTrue(self.consume('r3')['allowed'])
         self.assertTrue(self.store.audit('api')['ok'])

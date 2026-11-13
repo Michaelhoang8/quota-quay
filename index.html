@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Quota Quay · Request admission</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <aside>
+      <a href="/">quota<br /><em>quay.</em></a>
+      <p>REQUEST ADMISSION<br />LOCAL OPERATIONS</p>
+      <label
+        >Policy<select id="policy">
+          <option value="">No policies yet</option>
+        </select></label
+      ><button id="refresh">Refresh snapshot</button>
+      <div class="sidebar-note">
+        Durable decisions.<br />One bucket per client.<br />One receipt per
+        request.
+      </div>
+      <span class="version">TOKEN BUCKET / 01</span>
+    </aside>
+    <main>
+      <header>
+        <span>Backend systems / admission control</span
+        ><span id="connection">SQLite workspace</span>
+      </header>
+      <div class="intro">
+        <p class="eyebrow">Leave room for the next request.</p>
+        <h1>A little burst.<br />A steady <em>flow.</em></h1>
+        <p>
+          Inspect rate-limit decisions, refill balances, and retry receipts
+          without losing the history between restarts.
+        </p>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+      <section id="empty">
+        <h2>Start with a policy.</h2>
+        <p>
+          Create an immutable capacity and refill rate below. Each new client
+          starts with a full bucket.
+        </p>
+        <button id="example" class="primary">Create example policy</button>
+      </section>
+      <section id="workspace" hidden>
+        <div class="policy-heading">
+          <h2 id="policy-name"></h2>
+          <span id="policy-rule"></span>
+        </div>
+        <div class="metrics">
+          <div><span>Accepted</span><strong id="accepted"></strong></div>
+          <div><span>Denied</span><strong id="denied"></strong></div>
+          <div><span>Tokens consumed</span><strong id="consumed"></strong></div>
+          <div><span>Clients</span><strong id="clients"></strong></div>
+        </div>
+        <div class="workbench">
+          <section>
+            <h2>Send a request.</h2>
+            <form id="consume">
+              <div class="pair">
+                <label
+                  >Client key<input
+                    id="client"
+                    value="studio-client"
+                    required
+                    maxlength="64"
+                    pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}" /></label
+                ><label
+                  >Token cost<input
+                    id="cost"
+                    type="number"
+                    min="1"
+                    value="1"
+                    required
+                /></label>
+              </div>
+              <label
+                >Idempotent request ID<input
+                  id="request-id"
+                  required
+                  maxlength="64"
+                  pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}"
+              /></label>
+              <div class="actions">
+                <button class="primary">Consume tokens</button
+                ><button id="new-id" type="button">New ID</button>
+              </div>
+            </form>
+            <p class="hint">
+              An identical retry returns its original decision, including a
+              denial. Use a new ID to request a fresh decision after refill.
+            </p>
+            <div class="burst">
+              <label
+                >Requests in burst<input
+                  id="burst-count"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value="10" /></label
+              ><button id="burst">Send burst</button>
+            </div>
+            <p class="hint">
+              A burst sends up to 30 sequential requests with distinct IDs. Each
+              decision is independently committed.
+            </p>
+          </section>
+          <section class="receipt">
+            <p class="eyebrow">Latest response</p>
+            <h2 id="decision-title">Awaiting a request</h2>
+            <p id="decision-description">
+              The service returns an exact token balance and refill delay for
+              every decision.
+            </p>
+            <dl id="decision-facts"></dl>
+            <button id="retry" disabled>Replay this request</button>
+          </section>
+        </div>
+        <div class="section-heading">
+          <h2>Client balances</h2>
+          <span id="sampled"></span>
+        </div>
+        <p class="hint">
+          Projected at the snapshot time. Refresh to include elapsed refill;
+          reading never changes stored balances.
+        </p>
+        <div id="buckets" class="buckets"></div>
+        <div class="section-heading">
+          <h2>Decision receipts</h2>
+          <label
+            >Client filter<input id="filter" placeholder="All clients"
+          /></label>
+        </div>
+        <p class="hint" id="receipt-note"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sequence</th>
+                <th>Client / request</th>
+                <th>Decision</th>
+                <th>Cost</th>
+                <th>Remaining</th>
+                <th>Retry delay</th>
+              </tr>
+            </thead>
+            <tbody id="receipts"></tbody>
+          </table>
+        </div>
+        <div class="exports">
+          <button id="audit">Audit stored balances</button
+          ><button id="export">Export full evidence</button
+          ><button id="csv">Export receipt CSV</button>
+        </div>
+        <p id="audit-result" role="status"></p>
+      </section>
+      <details id="create-details">
+        <summary>Create a policy</summary>
+        <form id="create">
+          <label
+            >Name<input
+              id="name"
+              value="api-budget"
+              required
+              maxlength="64"
+              pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}" /></label
+          ><label
+            >Capacity · tokens<input
+              id="capacity"
+              type="number"
+              min="1"
+              max="1000000"
+              value="5"
+              required /></label
+          ><label
+            >Refill · tokens / second<input
+              id="rate"
+              type="number"
+              min="1"
+              max="1000000"
+              value="1"
+              required /></label
+          ><button class="primary">Create policy</button>
+        </form>
+        <p class="hint">
+          Policies are immutable. Create a new name to change capacity or refill
+          rate. Requests are isolated by policy and client.
+        </p>
+      </details>
+      <details>
+        <summary>API &amp; operational boundaries</summary>
+        <p>
+          POST /api/policies creates a policy. POST /api/policies/{name}/consume
+          accepts request_id, client, and cost. Successful admission returns
+          HTTP 200; denial returns 429 and Retry-After. Conflicting reuse of an
+          ID returns 409.
+        </p>
+        <p>
+          All decisions use a SQLite write transaction. Exact integer
+          microtokens avoid floating-point drift. Backward clock movement is
+          clamped per client; a large forward jump can refill to capacity. Retry
+          delays are measured at the original decision time and are not
+          reservations.
+        </p>
+        <p>
+          This is a local service and reference implementation, not a
+          distributed gateway. It has no authentication, tenant authorization,
+          retention cleanup, or external traffic interception. Bounds: 100
+          policies, 2,000 clients and 10,000 receipts per policy. Stop the
+          server before backing up the entire data directory.
+        </p>
+      </details>
+      <footer>
+        <span>Measure the burst. Preserve the receipt.</span
+        ><span>Loopback only / SQLite WAL</span>
+      </footer>
+    </main>
+  </body>
+</html>

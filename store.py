@@ -41,7 +41,7 @@ def decision(capacity, rate, balance, previous_us, now_us, cost):
     allowed = available >= cost * SCALE
     remaining = available - cost * SCALE if allowed else available
     deficit = max(0, cost * SCALE - available)
-    retry = (deficit + rate - 1) // rate
+    retry = 0 if allowed else effective - now_us + (deficit + rate - 1) // rate
     return {'observed_us': now_us, 'effective_us': effective,
             'clock_clamped': now_us < previous_us, 'before_microtokens': available,
             'remaining_microtokens': remaining, 'allowed': allowed,
