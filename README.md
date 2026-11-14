@@ -21,7 +21,8 @@ Open http://127.0.0.1:8000. A fresh checkout starts empty. Create a policy or us
 - Atomic admission and receipt persistence under SQLite `BEGIN IMMEDIATE`.
 - Idempotent retries return the exact original decision without consuming or refilling tokens. Conflicting reuse of a request ID returns 409.
 - Explicit 429 denials with integer-second `Retry-After` and exact microsecond delay in the receipt.
-- Sequential burst runner, client filtering, read-only projected balances, and durable receipt history.
+- A decision strip and circular snapshot gauges show request outcomes and client balances. Open **Send request** for individual requests or sequential bursts.
+- Client filtering, read-only projected balances, and durable receipt history. Feedback transitions respect reduced-motion preferences.
 - Replay audit checks decision arithmetic and persisted bucket state.
 - Full JSON evidence and CSV receipt exports; the console shows the most recent 100 receipts.
 

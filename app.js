@@ -16,6 +16,7 @@ const tokens = (n) =>
 const freshID = () => `req-${crypto.randomUUID()}`;
 function message(text) {
   $("status").textContent = text;
+  $("request-status").textContent = text;
 }
 async function api(path, body) {
   const response = await fetch(
@@ -52,6 +53,7 @@ async function task(action) {
       .querySelectorAll("button,select")
       .forEach((x) => (x.disabled = false));
     $("retry").disabled = !lastRequest;
+    $("request-open").disabled = !snapshot;
     $("policy").disabled = !$("policy").options.length;
   }
 }
@@ -104,14 +106,24 @@ function render() {
   $("buckets").replaceChildren(
     ...s.buckets.map((b) => {
       const box = el("div", undefined, "bucket"),
-        progress = el("progress");
+        progress = el("progress"),
+        gauge = el("div", undefined, "gauge");
+      gauge.style.setProperty(
+        "--fill",
+        `${(b.projected_microtokens / (p.capacity * 1e6)) * 100}%`,
+      );
+      if (tokens(b.projected_microtokens).length > 9)
+        gauge.classList.add("long-value");
+      gauge.append(
+        el("strong", tokens(b.projected_microtokens)),
+        el("span", `of ${p.capacity} tokens`),
+      );
       progress.max = p.capacity * 1e6;
       progress.value = b.projected_microtokens;
       progress.setAttribute("aria-label", `${b.client} projected tokens`);
       box.append(
         el("h3", b.client),
-        el("strong", tokens(b.projected_microtokens)),
-        el("span", ` / ${p.capacity}`),
+        gauge,
         progress,
         el("p", `Stored after last decision: ${tokens(b.balance)}`, "hint"),
       );
@@ -126,6 +138,18 @@ function render() {
         "hint",
       ),
     );
+  const recent = s.receipts.slice(-100);
+  $("decision-strip").replaceChildren(
+    ...recent.map((r) => {
+      const bar = el("span", undefined, r.allowed ? "admitted" : "rejected");
+      bar.title = `#${r.seq} · ${r.client} · ${r.allowed ? "Accepted" : "Denied"} · cost ${r.cost}`;
+      bar.style.setProperty("--height", `${(r.cost / p.capacity) * 100}%`);
+      return bar;
+    }),
+  );
+  $("strip-label").textContent = recent.length
+    ? `${recent.length} latest decisions · bar height represents token cost · green accepted / red denied`
+    : "No decisions recorded";
   renderReceipts();
 }
 function renderReceipts() {
@@ -162,6 +186,14 @@ function renderReceipts() {
 function showReceipt(r) {
   const receipt = document.querySelector(".receipt");
   receipt.classList.toggle("denied", !r.allowed);
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+    receipt.animate(
+      [
+        { opacity: 0.45, transform: "translateY(4px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      { duration: 280, easing: "ease-out" },
+    );
   $("decision-title").textContent =
     `${r.allowed ? "Accepted" : "Denied"}${r.replayed ? " · replay" : ""}`;
   $("decision-description").textContent = r.replayed
@@ -346,3 +378,6 @@ $("csv").onclick = () =>
     );
   });
 task(() => policies());
+
+$("request-open").onclick = () => $("request-dialog").showModal();
+$("request-close").onclick = () => $("request-dialog").close();

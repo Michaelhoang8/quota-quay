@@ -8,36 +8,19 @@
     <script src="app.js" defer></script>
   </head>
   <body>
-    <aside>
-      <a href="/">quota<br /><em>quay.</em></a>
-      <p>REQUEST ADMISSION<br />LOCAL OPERATIONS</p>
+    <header class="app-header">
+      <h1>Quota Quay</h1>
       <label
         >Policy<select id="policy">
           <option value="">No policies yet</option>
         </select></label
-      ><button id="refresh">Refresh snapshot</button>
-      <div class="sidebar-note">
-        Durable decisions.<br />One bucket per client.<br />One receipt per
-        request.
-      </div>
-      <span class="version">TOKEN BUCKET / 01</span>
-    </aside>
+      ><button id="refresh">Refresh snapshot</button
+      ><button id="request-open" class="primary">Send request</button>
+    </header>
     <main>
-      <header>
-        <span>Backend systems / admission control</span
-        ><span id="connection">SQLite workspace</span>
-      </header>
-      <div class="intro">
-        <p class="eyebrow">Leave room for the next request.</p>
-        <h1>A little burst.<br />A steady <em>flow.</em></h1>
-        <p>
-          Inspect rate-limit decisions, refill balances, and retry receipts
-          without losing the history between restarts.
-        </p>
-      </div>
       <p id="status" role="status" aria-live="polite"></p>
       <section id="empty">
-        <h2>Start with a policy.</h2>
+        <h2>No policies</h2>
         <p>
           Create an immutable capacity and refill rate below. Each new client
           starts with a full bucket.
@@ -55,78 +38,47 @@
           <div><span>Tokens consumed</span><strong id="consumed"></strong></div>
           <div><span>Clients</span><strong id="clients"></strong></div>
         </div>
-        <div class="workbench">
-          <section>
-            <h2>Send a request.</h2>
-            <form id="consume">
-              <div class="pair">
-                <label
-                  >Client key<input
-                    id="client"
-                    value="studio-client"
-                    required
-                    maxlength="64"
-                    pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}" /></label
-                ><label
-                  >Token cost<input
-                    id="cost"
-                    type="number"
-                    min="1"
-                    value="1"
-                    required
-                /></label>
+        <div class="operations-overview">
+          <div class="decision-overview">
+            <div class="admission-summary">
+              <div>
+                <h2>Recent decisions</h2>
+                <div
+                  id="decision-strip"
+                  role="img"
+                  aria-label="Recent request decisions, green accepted and red denied"
+                ></div>
+                <p id="strip-label" class="hint"></p>
               </div>
-              <label
-                >Idempotent request ID<input
-                  id="request-id"
-                  required
-                  maxlength="64"
-                  pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}"
-              /></label>
-              <div class="actions">
-                <button class="primary">Consume tokens</button
-                ><button id="new-id" type="button">New ID</button>
-              </div>
-            </form>
-            <p class="hint">
-              An identical retry returns its original decision, including a
-              denial. Use a new ID to request a fresh decision after refill.
-            </p>
-            <div class="burst">
-              <label
-                >Requests in burst<input
-                  id="burst-count"
-                  type="number"
-                  min="1"
-                  max="30"
-                  value="10" /></label
-              ><button id="burst">Send burst</button>
+            </div>
+            <div class="workbench">
+              <section class="receipt">
+                <p class="eyebrow">Latest response</p>
+                <h2 id="decision-title">Awaiting a request</h2>
+                <p id="decision-description">
+                  The service returns an exact token balance and refill delay
+                  for every decision.
+                </p>
+                <details>
+                  <summary>Receipt details</summary>
+                  <dl id="decision-facts"></dl>
+                </details>
+                <button id="retry" disabled>Replay this request</button>
+              </section>
+            </div>
+          </div>
+          <section class="balance-overview">
+            <div class="section-heading">
+              <h2>Client balances</h2>
+              <span id="sampled"></span>
             </div>
             <p class="hint">
-              A burst sends up to 30 sequential requests with distinct IDs. Each
-              decision is independently committed.
+              Projected at the snapshot time. Refresh to include elapsed refill;
+              reading never changes stored balances.
             </p>
-          </section>
-          <section class="receipt">
-            <p class="eyebrow">Latest response</p>
-            <h2 id="decision-title">Awaiting a request</h2>
-            <p id="decision-description">
-              The service returns an exact token balance and refill delay for
-              every decision.
-            </p>
-            <dl id="decision-facts"></dl>
-            <button id="retry" disabled>Replay this request</button>
+            <div id="buckets" class="buckets"></div>
           </section>
         </div>
-        <div class="section-heading">
-          <h2>Client balances</h2>
-          <span id="sampled"></span>
-        </div>
-        <p class="hint">
-          Projected at the snapshot time. Refresh to include elapsed refill;
-          reading never changes stored balances.
-        </p>
-        <div id="buckets" class="buckets"></div>
         <div class="section-heading">
           <h2>Decision receipts</h2>
           <label
@@ -212,10 +164,63 @@
           server before backing up the entire data directory.
         </p>
       </details>
-      <footer>
-        <span>Measure the burst. Preserve the receipt.</span
-        ><span>Loopback only / SQLite WAL</span>
-      </footer>
     </main>
+    <dialog id="request-dialog" aria-labelledby="request-heading">
+      <div class="dialog-head">
+        <h2 id="request-heading">Send request</h2>
+        <button id="request-close">Close</button>
+      </div>
+      <p id="request-status" role="status"></p>
+      <section>
+        <form id="consume">
+          <div class="pair">
+            <label
+              >Client key<input
+                id="client"
+                value="studio-client"
+                required
+                maxlength="64"
+                pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}" /></label
+            ><label
+              >Token cost<input
+                id="cost"
+                type="number"
+                min="1"
+                value="1"
+                required
+            /></label>
+          </div>
+          <label
+            >Idempotent request ID<input
+              id="request-id"
+              required
+              maxlength="64"
+              pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}"
+          /></label>
+          <div class="actions">
+            <button class="primary">Consume tokens</button
+            ><button id="new-id" type="button">New ID</button>
+          </div>
+        </form>
+        <p class="hint">
+          An identical retry returns its original decision, including a denial.
+          Use a new ID to request a fresh decision after refill.
+        </p>
+        <div class="burst">
+          <label
+            >Requests in burst<input
+              id="burst-count"
+              type="number"
+              min="1"
+              max="30"
+              value="10" /></label
+          ><button id="burst">Send burst</button>
+        </div>
+        <p class="hint">
+          A burst sends up to 30 sequential requests with distinct IDs. Each
+          decision is independently committed.
+        </p>
+      </section>
+    </dialog>
   </body>
 </html>
